@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projet Dérive Gaspésie</title>
+<meta name="description" content="Vous avez trouvé une capsule de dérive du golfe du Saint-Laurent. Remettez-la à l'eau au bon moment.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   ZONE À MODIFIER
+   ═══════════════════════════════════════════════════════════ */
+const CONFIG = {
+  courriel : "bouteille@derivegaspe.ca",
+  largage  : "2026-07-27T15:53:35-04:00",
+  lieu     : "Cap-des-Rosiers-Est, Gaspésie",
+  lieuEn   : "Cap-des-Rosiers-Est, Gaspésie, Québec",
+  lat      : 48.860,     // ← décimales exactes à sortir de l'EXIF
+  lon      : -64.190
+};
+/* ═══════════════════════════════════════════════════════════ */
+</script>
+
+<style>
+:root{--papier:#F1E7CF;--papier2:#E7DABC;--encre:#12314A;--pale:#4A6A85;
+  --eau:#8FB4CC;--signal:#C93C22;--trait:rgba(18,49,74,.22)}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--papier);color:var(--encre);
+  font-family:Spectral,Georgia,serif;font-size:17px;line-height:1.6;
+  background-image:repeating-linear-gradient(0deg,transparent 0 38px,rgba(18,49,74,.045) 38px 39px),
+    repeating-linear-gradient(90deg,transparent 0 38px,rgba(18,49,74,.045) 38px 39px)}
+.wrap{max-width:640px;margin:0 auto;padding:26px 22px 56px}
+.eyebrow{font-family:'Barlow Condensed',sans-serif;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;font-size:14px;color:var(--signal);margin:0 0 12px}
+h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(32px,8.5vw,50px);
+  line-height:1.02;margin:0 0 20px;text-transform:uppercase}
+h3{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.13em;font-size:14px;color:var(--pale);margin:28px 0 8px;
+  padding-top:14px;border-top:1px solid var(--trait)}
+p{margin:0 0 14px}
+
+.compteur{border-top:2.5px solid var(--encre);border-bottom:1px solid var(--trait);
+  padding:16px 0 14px;margin:0 0 20px;display:flex;align-items:baseline;gap:22px;flex-wrap:wrap}
+.stat{display:flex;align-items:baseline;gap:10px}
+.stat .n{font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:clamp(44px,13vw,68px);line-height:.82;color:var(--signal);font-variant-numeric:tabular-nums}
+.stat .u{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.13em;font-size:13.5px;line-height:1.3}
+.masque{display:none}
+
+.bouton{display:block;width:100%;text-align:center;text-decoration:none;cursor:pointer;
+  background:var(--signal);color:#FFF6E8;border:2px solid var(--signal);
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;
+  text-transform:uppercase;letter-spacing:.05em;padding:16px 18px;margin:14px 0 8px}
+.bouton:focus-visible{outline:3px solid var(--encre);outline-offset:3px}
+.note{font-size:14.5px;color:var(--pale);margin:0 0 8px}
+
+#carte{height:250px;margin:16px 0 6px;border:1px solid var(--encre);display:none;background:var(--papier2)}
+.leaflet-container{font-family:Spectral,Georgia,serif}
+
+.fenetre{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:16px 0 20px;display:none}
+.fenetre .titre{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.13em;font-size:12.5px;color:var(--signal);margin-bottom:6px}
+.fenetre .quand{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:27px;line-height:1.1;margin-bottom:8px}
+.fenetre .pourquoi{font-size:15px;color:#2A4358;margin:0}
+.mesures{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:14px;
+  padding-top:12px;border-top:1px solid var(--trait)}
+.mesures div{font-size:14.5px}
+.mesures b{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;font-size:11.5px;color:var(--pale);display:block}
+
+.etape{border-left:3px solid var(--eau);padding:2px 0 2px 16px;margin:0 0 20px}
+.etape .num{font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--signal);
+  letter-spacing:.14em;text-transform:uppercase;font-size:13px;display:block;margin-bottom:3px}
+.cartouche{border:1px solid var(--encre);background:var(--papier2);padding:14px 16px;margin:24px 0 0}
+.cartouche dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 15px}
+.cartouche dt{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.11em;font-size:12.5px;color:var(--pale);white-space:nowrap;padding-top:3px}
+.cartouche dd{margin:0;font-size:15.5px}
+.coord{font-variant-numeric:tabular-nums;font-style:italic}
+
+.langues{display:flex;margin:0 0 24px;border:1px solid var(--encre);width:max-content}
+.langues button{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.12em;font-size:13px;background:none;border:none;color:var(--encre);padding:8px 16px;cursor:pointer}
+.langues button[aria-pressed="true"]{background:var(--encre);color:var(--papier)}
+.en{display:none}
+body.lang-en .fr{display:none}
+body.lang-en .en{display:block}
+body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
+.pied{margin-top:34px;padding-top:14px;border-top:2.5px solid var(--encre);
+  font-family:'Barlow Condensed',sans-serif;font-weight:500;text-transform:uppercase;
+  letter-spacing:.12em;font-size:11.5px;color:var(--pale);line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="langues">
+    <button id="bFr" aria-pressed="true">Français</button>
+    <button id="bEn" aria-pressed="false">English</button>
+  </div>
+
+  <p class="eyebrow">Projet Dérive Gaspésie · <span id="unite">Unité 1</span></p>
+  <div class="fr"><h1>Cette capsule voyage. Aidez-la à repartir</h1></div>
+  <div class="en"><h1>This capsule is travelling. Help it carry on</h1></div>
+
+  <div class="compteur">
+    <div class="stat"><span class="n" id="jours">—</span>
+      <span class="u"><span class="fr">jours<br>à la mer</span><span class="en">days<br>at sea</span></span></div>
+    <div class="stat masque" id="bKm"><span class="n" id="km">—</span>
+      <span class="u"><span class="fr">km<br>parcourus</span><span class="en">km<br>travelled</span></span></div>
+    <div class="stat masque" id="bVit"><span class="n" id="vit">—</span>
+      <span class="u"><span class="fr">km<br>par jour</span><span class="en">km<br>per day</span></span></div>
+  </div>
+
+  <div class="fr" id="introFr">
+    <p>Elle a été larguée à Cap-des-Rosiers, en Gaspésie, et elle dérive depuis. Vous êtes l'escale suivante.</p>
+    <p><b>Dites-moi d'abord où vous êtes.</b> La page calculera le chemin parcouru et le meilleur moment pour la remettre à l'eau, ici même.</p>
+  </div>
+  <div class="en" id="introEn">
+    <p>It was released at Cap-des-Rosiers, Gaspésie, and it has been drifting ever since. You're the next stop.</p>
+    <p><b>Tell me where you are first.</b> The page will work out how far it came and the best moment to put it back in the water, right where you are.</p>
+  </div>
+
+  <div id="slot">
+    <button class="bouton" id="btnPos">
+      <span class="fr">Je l'ai trouvée ici</span><span class="en">I found it here</span>
+    </button>
+  </div>
+  <p class="note" id="etat"></p>
+
+  <div id="carte"></div>
+  <p class="note coord" id="maPos"></p>
+
+  <div class="fenetre" id="fenetre">
+    <div class="titre"><span class="fr">Meilleur moment pour la relancer</span><span class="en">Best moment to relaunch</span></div>
+    <div class="quand" id="quand">—</div>
+    <p class="pourquoi" id="pourquoi"></p>
+    <div class="mesures" id="mesures"></div>
+  </div>
+
+  <div class="fr">
+    <h3>Comment la relancer</h3>
+    <div class="etape"><span class="num">1 — Envoyez le point</span>
+      Où et quand vous l'avez trouvée. C'est la seule chose que la capsule ne peut pas rapporter toute seule.</div>
+    <div class="etape"><span class="num">2 — Remettez-la à l'eau</span>
+      Près d'où vous l'avez trouvée, à marée descendante, et lancez-la aussi loin que vous pouvez. Depuis un quai ou une pointe plutôt qu'au fond d'une baie : elle repart au large au lieu de revenir sur la grève.</div>
+    <div class="etape"><span class="num">3 — Vérifiez le bouchon</span>
+      Bien serré. Elle est scellée au ruban de silicone; s'il est décollé, un tour de ruban adhésif fera la job jusqu'à la prochaine escale.</div>
+
+    <h3>Ce que c'est</h3>
+    <p>Une bouteille lestée et scellée, larguée dans le golfe du Saint-Laurent pour mesurer les courants de surface. Le lest la fait flotter aux deux tiers immergée : assez enfoncée pour se laisser porter par le courant plutôt que pousser par le vent. C'est ce qui fait la différence entre une mesure et un déchet flottant.</p>
+    <p>Chaque escale signalée est un point sur une carte des courants du golfe qui n'existerait pas autrement.</p>
+  </div>
+
+  <div class="en">
+    <h3>How to relaunch it</h3>
+    <div class="etape"><span class="num">1 — Send the position</span>
+      Where and when you found it. That's the one thing the capsule can't carry home by itself.</div>
+    <div class="etape"><span class="num">2 — Put it back in the water</span>
+      Near where you found it, on a falling tide, thrown as far as you can. From a wharf or a headland rather than deep in a bay: it heads offshore instead of washing straight back.</div>
+    <div class="etape"><span class="num">3 — Check the cap</span>
+      Good and tight. It's sealed with silicone tape; if that has come loose, a wrap of any tape will hold it to the next stop.</div>
+
+    <h3>What this is</h3>
+    <p>A ballasted, sealed bottle released into the Gulf of St. Lawrence to measure surface currents. The ballast keeps it two-thirds submerged: deep enough to be carried by the current rather than pushed by the wind. That's the difference between a measurement and floating litter.</p>
+    <p>Every reported stop is a point on a map of the Gulf's currents that wouldn't exist otherwise.</p>
+  </div>
+
+  <div class="cartouche">
+    <dl>
+      <dt><span class="fr">Mise à l'eau</span><span class="en">Launched</span></dt><dd id="dLarg">—</dd>
+      <dt><span class="fr">Lieu</span><span class="en">From</span></dt><dd id="dLieu">—</dd>
+      <dt><span class="fr">Position</span><span class="en">Position</span></dt><dd class="coord" id="dPos">—</dd>
+    </dl>
+  </div>
+
+  <p class="pied">Projet Dérive Gaspésie · Golfe du Saint-Laurent<br>
+    Marées, courants et vents : Open-Meteo (CC BY 4.0) · Carte : OpenStreetMap</p>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  var $ = function(i){ return document.getElementById(i) };
+  var anglais = function(){ return document.body.classList.contains('lang-en') };
+
+  var m = location.pathname.match(/(\d+)/), u = m ? m[1] : "1";
+  $('unite').textContent = 'Unité ' + u;
+
+  var d0 = new Date(CONFIG.largage);
+  var jours = Math.max(0, Math.floor((Date.now() - d0) / 86400000));
+  $('jours').textContent = jours;
+  $('dLarg').textContent = d0.toLocaleDateString('fr-CA',{year:'numeric',month:'long',day:'numeric'});
+  $('dLieu').textContent = CONFIG.lieu;
+
+  function dms(v,p,n){var h=v<0?n:p,a=Math.abs(v),g=Math.floor(a);
+    return g+'° '+((a-g)*60).toFixed(1).replace('.',',')+'\u2032 '+h}
+  $('dPos').textContent = dms(CONFIG.lat,'N','S')+'   '+dms(CONFIG.lon,'E','O');
+
+  function distKm(a,b,c,e){var R=6371,r=Math.PI/180,dp=(c-a)*r,dl=(e-b)*r;
+    var x=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dl/2)*Math.sin(dl/2);
+    return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
+  function rose(deg){var r=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+    return r[Math.round(deg/22.5)%16]}
+
+  function lienMail(pos){
+    var s = encodeURIComponent('Capsule '+u+' retrouvée');
+    var p = pos ? pos.lat.toFixed(5)+', '+pos.lon.toFixed(5) : '';
+    var c = anglais()
+      ? "Unit: "+u+"\n\nWhere: "+p+"\n\nDate and time:\n\nCondition:\n\nI put it back in the water (yes / no):\n\nMy name (optional):\n"
+      : "Unité : "+u+"\n\nOù : "+p+"\n\nDate et heure :\n\nÉtat de la capsule :\n\nJe l'ai relancée à l'eau (oui / non) :\n\nMon nom (facultatif) :\n";
+    return 'mailto:'+CONFIG.courriel+'?subject='+s+'&body='+encodeURIComponent(c);
+  }
+
+  $('btnPos').addEventListener('click', function(){
+    if(!navigator.geolocation){ $('etat').textContent = anglais()?'Location unavailable here.':'Localisation non offerte sur cet appareil.'; return }
+    $('etat').textContent = anglais()?'Locating…':'Localisation en cours…';
+    navigator.geolocation.getCurrentPosition(succes, function(){
+      $('etat').textContent = anglais()
+        ? 'Couldn\u2019t get your position. Write to '+CONFIG.courriel+' and tell me where you are.'
+        : 'Position non obtenue. Écrivez à '+CONFIG.courriel+' en me disant où vous êtes.';
+    }, {enableHighAccuracy:true, timeout:12000});
+  });
+
+  function succes(p){
+    var la = p.coords.latitude, lo = p.coords.longitude;
+    $('etat').textContent = '';
+    $('introFr').style.display = 'none'; $('introEn').style.display = 'none';
+
+    var km = distKm(CONFIG.lat, CONFIG.lon, la, lo);
+    $('km').textContent = km < 10 ? km.toFixed(1).replace('.',',') : Math.round(km);
+    $('bKm').classList.remove('masque');
+    if(jours > 0){
+      var v = km/jours;
+      $('vit').textContent = v < 10 ? v.toFixed(1).replace('.',',') : Math.round(v);
+      $('bVit').classList.remove('masque');
+    }
+    $('maPos').textContent = (anglais()?'You: ':'Vous : ')+dms(la,'N','S')+'   '+dms(lo,'E','O');
+
+    // le bouton devient l'envoi, au même endroit
+    $('slot').innerHTML = '<a class="bouton" href="'+lienMail({lat:la,lon:lo})+'">'
+      + '<span class="fr">Envoyer ce point</span><span class="en">Send this position</span></a>';
+
+    if(window.L){
+      var el = $('carte'); el.style.display='block';
+      var map = L.map(el);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(map);
+      var A=[CONFIG.lat,CONFIG.lon], B=[la,lo];
+      L.circleMarker(A,{radius:7,color:'#12314A',fillColor:'#12314A',fillOpacity:1}).addTo(map)
+        .bindPopup(anglais()?'Launched here':'Larguée ici');
+      L.circleMarker(B,{radius:9,color:'#C93C22',fillColor:'#C93C22',fillOpacity:1}).addTo(map)
+        .bindPopup(anglais()?'Found here':'Trouvée ici');
+      L.polyline([A,B],{color:'#C93C22',weight:2,dashArray:'5,6'}).addTo(map);
+      map.fitBounds(L.latLngBounds([A,B]).pad(0.3));
+    }
+    fenetre(la,lo);
+  }
+
+  function fenetre(la,lo){
+    var mar = 'https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo
+      + '&hourly=sea_level_height_msl,ocean_current_velocity,ocean_current_direction,sea_surface_temperature'
+      + '&timezone=auto&forecast_days=3';
+    var met = 'https://api.open-meteo.com/v1/forecast?latitude='+la+'&longitude='+lo
+      + '&hourly=wind_speed_10m,wind_direction_10m&timezone=auto&forecast_days=3';
+
+    Promise.all([fetch(mar).then(function(r){return r.json()}), fetch(met).then(function(r){return r.json()})])
+      .then(function(res){
+        var M = res[0].hourly, W = res[1].hourly;
+        if(!M || !M.time) return;
+        var t = M.time, h = M.sea_level_height_msl || [], vent = (W&&W.wind_speed_10m)||[];
+        var maintenant = new Date(), i0 = 0;
+        for(var i=0;i<t.length;i++){ if(new Date(t[i]) >= maintenant){ i0 = i; break } }
+
+        var meilleur = -1, note = -1e9;
+        for(var i=i0;i<t.length-1 && i<i0+48;i++){
+          if(h[i]==null || h[i+1]==null) continue;
+          var baisse = h[i]-h[i+1];                 // positif = la mer descend
+          var hh = new Date(t[i]).getHours();
+          var jour = (hh>=6 && hh<=20) ? 1 : 0;
+          var v = vent[i]==null ? 15 : vent[i];
+          var n = baisse*10 + jour*0.6 - Math.min(v,45)/45*0.5;
+          if(n > note){ note = n; meilleur = i }
+        }
+        if(meilleur < 0) return;
+
+        var D = new Date(t[meilleur]), fin = new Date(D.getTime()+3*3600000);
+        var loc = anglais()?'en-CA':'fr-CA';
+        var jourTxt = D.toLocaleDateString(loc,{weekday:'long',day:'numeric',month:'long'});
+        var hDeb = D.getHours(), hFin = fin.getHours();
+        $('quand').textContent = jourTxt.charAt(0).toUpperCase()+jourTxt.slice(1)
+          + (anglais() ? ', '+hDeb+':00 to '+hFin+':00' : ', de '+hDeb+' h à '+hFin+' h');
+
+        var chute = (h[meilleur]-h[meilleur+1]);
+        $('pourquoi').textContent = anglais()
+          ? 'The tide is falling fastest then (about '+(chute*100).toFixed(0)+' cm per hour), which carries a floating object away from shore instead of back onto it.'
+          : 'C\u2019est là que la mer descend le plus vite — environ '+(chute*100).toFixed(0)+' cm à l\u2019heure. Le jusant emporte un objet flottant vers le large au lieu de le ramener sur la grève.';
+
+        var out = '', cv = M.ocean_current_velocity, cd = M.ocean_current_direction, st = M.sea_surface_temperature;
+        if(cv && cv[meilleur]!=null){
+          out += '<div><b>'+(anglais()?'Current then':'Courant à ce moment')+'</b>'
+              + cv[meilleur].toFixed(2).replace('.',',')+' m/s'
+              + (cd && cd[meilleur]!=null ? ' \u2192 '+rose(cd[meilleur]) : '')+'</div>';
+        }
+        if(vent[meilleur]!=null){
+          out += '<div><b>'+(anglais()?'Wind':'Vent')+'</b>'+Math.round(vent[meilleur])+' km/h'
+              + (W.wind_direction_10m && W.wind_direction_10m[meilleur]!=null ? ' '+rose(W.wind_direction_10m[meilleur]) : '')+'</div>';
+        }
+        if(st && st[meilleur]!=null){
+          out += '<div><b>'+(anglais()?'Water':'Eau')+'</b>'+st[meilleur].toFixed(1).replace('.',',')+' °C</div>';
+        }
+        $('mesures').innerHTML = out;
+        $('fenetre').style.display = 'block';
+      })
+      .catch(function(){ /* silencieux : la page reste utile sans la fenêtre */ });
+  }
+
+  var bFr=$('bFr'), bEn=$('bEn');
+  function set(v){ document.body.classList.toggle('lang-en',v);
+    document.documentElement.lang = v?'en':'fr';
+    bFr.setAttribute('aria-pressed',!v); bEn.setAttribute('aria-pressed',v) }
+  bFr.onclick=function(){set(false)}; bEn.onclick=function(){set(true)};
+  if((navigator.language||'').slice(0,2)==='en') set(true);
+})();
+</script>
+</body>
+</html>
