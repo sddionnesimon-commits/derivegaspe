@@ -90,6 +90,11 @@ p{margin:0 0 14px}
 .escale .msg{margin:0 0 8px;font-style:italic}
 .escale .ou{font-size:13.5px;color:var(--pale);margin:0}
 .escale .ou a{color:var(--pale)}
+#estim{border:1px dashed var(--signal);background:var(--papier2);padding:14px 16px;margin:10px 0 16px;display:none}
+#estim .titre{font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;font-size:13px;color:var(--signal);margin-bottom:6px}
+#estim p{margin:0;font-size:15px}
+#estim .avert{font-size:13px;color:var(--pale);margin-top:8px;font-style:italic}
 
 .fenetre{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:16px 0 20px;display:none}
 .fenetre .titre{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
@@ -171,6 +176,12 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   <h3><span class="fr">Le voyage</span><span class="en">The journey</span></h3>
   <div id="carte"></div>
   <p class="note coord" id="maPos"></p>
+
+  <div id="estim">
+    <div class="titre"><span class="fr">Où est-elle maintenant ?</span><span class="en">Where is it now?</span></div>
+    <p id="estimTexte"></p>
+    <p class="avert"><span class="fr">Estimation calculée à partir des courants et des vents. Très approximative — la mer est imprévisible, c'est une hypothèse et non une position réelle.</span><span class="en">Estimated from currents and winds. Very approximate — the sea is unpredictable; this is a guess, not a real position.</span></p>
+  </div>
 
   <h3 id="titreEscales" style="display:none"><span class="fr">Les escales</span><span class="en">The stops</span></h3>
   <div id="escales"></div>
@@ -350,9 +361,61 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
         var el=$('lieu'+e.id); if(l && el) el.textContent=l;
       }).catch(function(){});
   }
+  function brngDeg(la1,lo1,la2,lo2){
+    var r=Math.PI/180, dl=(lo2-lo1)*r;
+    var y=Math.sin(dl)*Math.cos(la2*r);
+    var x=Math.cos(la1*r)*Math.sin(la2*r)-Math.sin(la1*r)*Math.cos(la2*r)*Math.cos(dl);
+    return (Math.atan2(y,x)/r+360)%360;
+  }
+  // ---- Projection de derive : estimation TRES approximative de la position actuelle ----
+  function projection(){
+    var now=new Date();
+    if((now-d0)/3600000 < 12) return;                 // trop tot (< 12 h)
+    var start=d0.toISOString().slice(0,10), end=now.toISOString().slice(0,10);
+    var mar='https://marine-api.open-meteo.com/v1/marine?latitude='+CONFIG.lat+'&longitude='+CONFIG.lon
+      +'&hourly=ocean_current_velocity,ocean_current_direction&start_date='+start+'&end_date='+end+'&timezone=UTC';
+    var met='https://api.open-meteo.com/v1/forecast?latitude='+CONFIG.lat+'&longitude='+CONFIG.lon
+      +'&hourly=wind_speed_10m,wind_direction_10m&start_date='+start+'&end_date='+end+'&timezone=UTC';
+    Promise.all([fetch(mar).then(function(r){return r.json()}),fetch(met).then(function(r){return r.json()})])
+      .then(function(res){
+        var M=res[0].hourly, W=res[1].hourly;
+        if(!M||!M.time) return;
+        var cv=M.ocean_current_velocity||[], cd=M.ocean_current_direction||[],
+            wv=(W&&W.wind_speed_10m)||[], wd=(W&&W.wind_direction_10m)||[];
+        var lat=CONFIG.lat, lon=CONFIG.lon, rd=Math.PI/180, n=0;
+        for(var i=0;i<M.time.length;i++){
+          var th=new Date(M.time[i]+'Z');
+          if(th<d0 || th>=now) continue;
+          var v=cv[i], dir=cd[i];
+          if(v==null||dir==null) continue;
+          var c=v/3.6, wsp=(wv[i]||0)/3.6, wdir=wd[i];       // km/h -> m/s
+          var ex=c*Math.sin(dir*rd), ny=c*Math.cos(dir*rd);  // courant "vers dir"
+          if(wdir!=null){ var vd=(wdir+180)*rd; ex+=0.015*wsp*Math.sin(vd); ny+=0.015*wsp*Math.cos(vd); }
+          lat+=(ny*3600)/111320; lon+=(ex*3600)/(111320*Math.cos(lat*rd)); n++;
+        }
+        if(n<12) return;
+        var km=distKm(CONFIG.lat,CONFIG.lon,lat,lon);
+        if(km<1) return;
+        var lang=anglais(), dirTxt=rose(brngDeg(CONFIG.lat,CONFIG.lon,lat,lon));
+        if(lang) dirTxt=dirTxt.replace(/O/g,'W');
+        var kmTxt=km<10?km.toFixed(1).replace('.',','):Math.round(km);
+        $('estimTexte').innerHTML = lang
+          ? 'It may have drifted about <b>'+kmTxt+' km</b> toward the <b>'+dirTxt+'</b>, somewhere in the dashed area.'
+          : 'Elle pourrait avoir dérivé d’environ <b>'+kmTxt+' km</b> vers le <b>'+dirTxt+'</b>, quelque part dans la zone en pointillé.';
+        $('estim').style.display='block';
+        if(map){
+          var C=[lat,lon], rayon=Math.max(10000, km*450);
+          L.circle(C,{radius:rayon,color:'#C93C22',weight:1,opacity:.5,fillColor:'#C93C22',fillOpacity:.08,dashArray:'5,6'}).addTo(map);
+          L.polyline([[CONFIG.lat,CONFIG.lon],C],{color:'#C93C22',weight:1.5,opacity:.5,dashArray:'2,7'}).addTo(map);
+          L.circleMarker(C,{radius:5,color:'#C93C22',weight:2,fillColor:'#F1E7CF',fillOpacity:1}).addTo(map)
+            .bindPopup(lang?'Estimated position (very approximate)':'Position estimée (très approximative)');
+          if(!laLo) map.fitBounds(L.latLngBounds([[CONFIG.lat,CONFIG.lon],C]).pad(0.3));
+        }
+      }).catch(function(){});
+  }
   fetch(CONFIG.api+'/api/escales/'+u).then(function(r){return r.json()})
-    .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); })
-    .catch(function(){ pointsCarte([]); });
+    .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); projection(); })
+    .catch(function(){ pointsCarte([]); projection(); });
 
   $('btnPos').addEventListener('click', function(){
     if(!navigator.geolocation){ $('etat').textContent = anglais()?'Location unavailable here.':'Localisation non offerte sur cet appareil.'; return }
