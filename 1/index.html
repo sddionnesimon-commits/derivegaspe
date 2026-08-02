@@ -180,7 +180,7 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   <div id="estim">
     <div class="titre"><span class="fr">Où est-elle maintenant ?</span><span class="en">Where is it now?</span></div>
     <p id="estimTexte"></p>
-    <p class="avert"><span class="fr">Estimation calculée à partir des courants et des vents. Très approximative — la mer est imprévisible, c'est une hypothèse et non une position réelle.</span><span class="en">Estimated from currents and winds. Very approximate — the sea is unpredictable; this is a guess, not a real position.</span></p>
+    <p class="avert"><span class="fr">Estimation basée sur la vitesse habituelle du courant de Gaspé. Très approximative — la mer est imprévisible, c'est une hypothèse et non une position réelle.</span><span class="en">Based on the usual speed of the Gaspé Current. Very approximate — the sea is unpredictable; this is a guess, not a real position.</span></p>
   </div>
 
   <h3 id="titreEscales" style="display:none"><span class="fr">Les escales</span><span class="en">The stops</span></h3>
@@ -370,48 +370,22 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   // ---- Projection de derive : estimation TRES approximative de la position actuelle ----
   function projection(){
     var now=new Date();
-    if((now-d0)/3600000 < 12) return;                 // trop tot (< 12 h)
-    var start=d0.toISOString().slice(0,10), end=now.toISOString().slice(0,10);
-    var mar='https://marine-api.open-meteo.com/v1/marine?latitude='+CONFIG.lat+'&longitude='+CONFIG.lon
-      +'&hourly=ocean_current_velocity,ocean_current_direction&start_date='+start+'&end_date='+end+'&timezone=UTC';
-    var met='https://api.open-meteo.com/v1/forecast?latitude='+CONFIG.lat+'&longitude='+CONFIG.lon
-      +'&hourly=wind_speed_10m,wind_direction_10m&start_date='+start+'&end_date='+end+'&timezone=UTC';
-    Promise.all([fetch(mar).then(function(r){return r.json()}),fetch(met).then(function(r){return r.json()})])
-      .then(function(res){
-        var M=res[0].hourly, W=res[1].hourly;
-        if(!M||!M.time) return;
-        var cv=M.ocean_current_velocity||[], cd=M.ocean_current_direction||[],
-            wv=(W&&W.wind_speed_10m)||[], wd=(W&&W.wind_direction_10m)||[];
-        var lat=CONFIG.lat, lon=CONFIG.lon, rd=Math.PI/180, n=0;
-        for(var i=0;i<M.time.length;i++){
-          var th=new Date(M.time[i]+'Z');
-          if(th<d0 || th>=now) continue;
-          var v=cv[i], dir=cd[i];
-          if(v==null||dir==null) continue;
-          var c=v/3.6, wsp=(wv[i]||0)/3.6, wdir=wd[i];       // km/h -> m/s
-          var ex=c*Math.sin(dir*rd), ny=c*Math.cos(dir*rd);  // courant "vers dir"
-          if(wdir!=null){ var vd=(wdir+180)*rd; ex+=0.015*wsp*Math.sin(vd); ny+=0.015*wsp*Math.cos(vd); }
-          lat+=(ny*3600)/111320; lon+=(ex*3600)/(111320*Math.cos(lat*rd)); n++;
-        }
-        if(n<12) return;
-        var km=distKm(CONFIG.lat,CONFIG.lon,lat,lon);
-        if(km<1) return;
-        var lang=anglais(), dirTxt=rose(brngDeg(CONFIG.lat,CONFIG.lon,lat,lon));
-        if(lang) dirTxt=dirTxt.replace(/O/g,'W');
-        var kmTxt=km<10?km.toFixed(1).replace('.',','):Math.round(km);
-        $('estimTexte').innerHTML = lang
-          ? 'It may have drifted about <b>'+kmTxt+' km</b> toward the <b>'+dirTxt+'</b>, somewhere in the dashed area.'
-          : 'Elle pourrait avoir dérivé d’environ <b>'+kmTxt+' km</b> vers le <b>'+dirTxt+'</b>, quelque part dans la zone en pointillé.';
-        $('estim').style.display='block';
-        if(map){
-          var C=[lat,lon], rayon=Math.max(10000, km*450);
-          L.circle(C,{radius:rayon,color:'#C93C22',weight:1,opacity:.5,fillColor:'#C93C22',fillOpacity:.08,dashArray:'5,6'}).addTo(map);
-          L.polyline([[CONFIG.lat,CONFIG.lon],C],{color:'#C93C22',weight:1.5,opacity:.5,dashArray:'2,7'}).addTo(map);
-          L.circleMarker(C,{radius:5,color:'#C93C22',weight:2,fillColor:'#F1E7CF',fillOpacity:1}).addTo(map)
-            .bindPopup(lang?'Estimated position (very approximate)':'Position estimée (très approximative)');
-          if(!laLo) map.fitBounds(L.latLngBounds([[CONFIG.lat,CONFIG.lon],C]).pad(0.3));
-        }
-      }).catch(function(){});
+    var jours=Math.floor((now-d0)/86400000);
+    if(jours<1) return;                                // trop tot (< 1 jour)
+    var vMin=25, vMax=40;                              // km/jour, courant de Gaspé (brief)
+    var rMin=jours*vMin*1000, rMax=jours*vMax*1000;    // metres
+    var lang=anglais();
+    $('estimTexte').innerHTML = lang
+      ? 'After <b>'+jours+' day'+(jours>1?'s':'')+'</b>, carried by the Gaspé Current (25–40 km/day), it has probably travelled <b>'+(jours*vMin)+' to '+(jours*vMax)+' km</b>, somewhere within the ring. The current usually flows east-southeast (toward Percé and the Magdalen Islands), so more likely on that side.'
+      : 'Après <b>'+jours+' jour'+(jours>1?'s':'')+'</b>, portée par le courant de Gaspé (25–40 km/jour), elle a probablement parcouru <b>'+(jours*vMin)+' à '+(jours*vMax)+' km</b>, quelque part dans l’anneau. Le courant file généralement vers l’est-sud-est (Percé, les Îles-de-la-Madeleine), donc plus probablement de ce côté.';
+    $('estim').style.display='block';
+    if(map){
+      var A=[CONFIG.lat,CONFIG.lon];
+      var cMax=L.circle(A,{radius:rMax,color:'#C93C22',weight:1.5,opacity:.55,dashArray:'5,7',fillColor:'#C93C22',fillOpacity:.05}).addTo(map);
+      L.circle(A,{radius:rMin,color:'#C93C22',weight:1.5,opacity:.55,dashArray:'5,7',fill:false}).addTo(map)
+        .bindPopup(lang?'Probable distance travelled':'Distance probablement parcourue');
+      if(!laLo) map.fitBounds(cMax.getBounds().pad(0.15));
+    }
   }
   fetch(CONFIG.api+'/api/escales/'+u).then(function(r){return r.json()})
     .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); projection(); })
