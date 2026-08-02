@@ -388,8 +388,10 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     }
   }
   fetch(CONFIG.api+'/api/escales/'+u).then(function(r){return r.json()})
-    .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); projection(); })
-    .catch(function(){ pointsCarte([]); projection(); });
+    .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); })
+    .catch(function(){ pointsCarte([]); });
+  // projection() volontairement NON appelée : la fourchette réelle du courant de Gaspé
+  // (20 à 86 km/j) donne un anneau trop large pour être utile. Code conservé pour référence.
 
   $('btnPos').addEventListener('click', function(){
     if(!navigator.geolocation){ $('etat').textContent = anglais()?'Location unavailable here.':'Localisation non offerte sur cet appareil.'; return }
