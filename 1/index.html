@@ -16,6 +16,7 @@
    ═══════════════════════════════════════════════════════════ */
 const CONFIG = {
   courriel : "bouteille@derivegaspe.ca",
+  api      : "https://derivegaspe-api.sd-dionne-simon.workers.dev",
   largage  : "2026-07-27T15:53:35-04:00",
   lieu     : "Cap-des-Rosiers-Est, Gaspésie",
   lieuEn   : "Cap-des-Rosiers-Est, Gaspésie, Québec",
@@ -60,8 +61,23 @@ p{margin:0 0 14px}
 .bouton:focus-visible{outline:3px solid var(--encre);outline-offset:3px}
 .note{font-size:14.5px;color:var(--pale);margin:0 0 8px}
 
-#carte{height:250px;margin:16px 0 6px;border:1px solid var(--encre);display:none;background:var(--papier2)}
+#carte{height:280px;margin:10px 0 6px;border:1px solid var(--encre);background:var(--papier2)}
 .leaflet-container{font-family:Spectral,Georgia,serif}
+#form{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:14px 0 8px;display:none}
+#form>p{margin:0 0 4px}
+#form label.champ{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;font-size:12.5px;color:var(--pale);display:block;margin:12px 0 5px}
+#form input[type=text],#form textarea{width:100%;font-family:Spectral,Georgia,serif;font-size:16px;
+  padding:9px 10px;border:1px solid var(--trait);background:#FFF9EC;color:var(--encre)}
+#form textarea{min-height:70px;resize:vertical}
+.photo-btn{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-weight:600;
+  text-transform:uppercase;letter-spacing:.06em;font-size:14px;color:var(--encre);
+  background:#FFF9EC;border:1px solid var(--encre);padding:10px 14px;cursor:pointer}
+#apercu{max-width:100%;margin-top:10px;border:1px solid var(--encre);display:none}
+.hp{position:absolute;left:-9999px;width:1px;height:1px}
+#merci{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:14px 0;display:none}
+#merci .titre{font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--signal);
+  text-transform:uppercase;letter-spacing:.1em;font-size:16px;margin-bottom:6px}
 
 .fenetre{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:16px 0 20px;display:none}
 .fenetre .titre{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
@@ -140,8 +156,30 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   </div>
   <p class="note" id="etat"></p>
 
+  <h3><span class="fr">Le voyage</span><span class="en">The journey</span></h3>
   <div id="carte"></div>
   <p class="note coord" id="maPos"></p>
+
+  <form id="form">
+    <p><span class="fr"><b>Ajoutez une photo et un mot</b> (facultatif), puis envoyez.</span><span class="en"><b>Add a photo and a note</b> (optional), then send.</span></p>
+    <label class="champ" for="photo"><span class="fr">Photo de l'endroit</span><span class="en">Photo of the spot</span></label>
+    <label class="photo-btn" for="photo"><span class="fr">📷 Choisir une photo</span><span class="en">📷 Choose a photo</span></label>
+    <input type="file" id="photo" accept="image/*" capture="environment" style="display:none">
+    <img id="apercu" alt="">
+    <label class="champ" for="message"><span class="fr">Un petit mot</span><span class="en">A short note</span></label>
+    <textarea id="message" maxlength="2000"></textarea>
+    <label class="champ" for="nom"><span class="fr">Votre nom (facultatif)</span><span class="en">Your name (optional)</span></label>
+    <input type="text" id="nom" maxlength="80">
+    <input type="text" class="hp" id="site" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button type="submit" class="bouton" id="btnEnvoi" style="margin-top:14px">
+      <span class="fr">Envoyer ma découverte</span><span class="en">Send my find</span>
+    </button>
+  </form>
+
+  <div id="merci">
+    <div class="titre"><span class="fr">Merci !</span><span class="en">Thank you!</span></div>
+    <p style="margin:0"><span class="fr">Votre découverte a été envoyée. Elle apparaîtra sur la carte du voyage une fois vérifiée. Il ne reste qu'à remettre la bouteille à l'eau — le meilleur moment est indiqué plus bas.</span><span class="en">Your find has been sent. It will appear on the journey map once reviewed. Now just put the bottle back in the water — the best moment is shown below.</span></p>
+  </div>
 
   <div class="fenetre" id="fenetre">
     <div class="titre"><span class="fr">Meilleur moment pour la relancer</span><span class="en">Best moment to relaunch</span></div>
@@ -246,6 +284,29 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     return 'mailto:'+CONFIG.courriel+'?subject='+s+'&body='+encodeURIComponent(c);
   }
 
+  // ---- Carte permanente du voyage (largage + escales approuvées) ----
+  var map = null, laLo = null;
+  function pointsCarte(escales){
+    if(!window.L) return;
+    map = L.map($('carte'), {scrollWheelZoom:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(map);
+    var A=[CONFIG.lat,CONFIG.lon], pts=[A];
+    L.circleMarker(A,{radius:7,color:'#12314A',fillColor:'#12314A',fillOpacity:1}).addTo(map)
+      .bindPopup(anglais()?'Launched here':'Larguée ici');
+    (escales||[]).forEach(function(e){
+      var P=[e.lat,e.lon]; pts.push(P);
+      var txt=(e.nom?String(e.nom)+' — ':'')+(e.message?String(e.message):(anglais()?'A stop':'Une escale'));
+      L.circleMarker(P,{radius:7,color:'#4A6A85',fillColor:'#8FB4CC',fillOpacity:1}).addTo(map).bindPopup(txt);
+    });
+    if(pts.length>1){
+      L.polyline(pts,{color:'#C93C22',weight:2,dashArray:'5,6'}).addTo(map);
+      map.fitBounds(L.latLngBounds(pts).pad(0.3));
+    } else { map.setView(A,9); }
+  }
+  fetch(CONFIG.api+'/api/escales/'+u).then(function(r){return r.json()})
+    .then(function(d){ pointsCarte(d.escales||[]); })
+    .catch(function(){ pointsCarte([]); });
+
   $('btnPos').addEventListener('click', function(){
     if(!navigator.geolocation){ $('etat').textContent = anglais()?'Location unavailable here.':'Localisation non offerte sur cet appareil.'; return }
     $('etat').textContent = anglais()?'Locating…':'Localisation en cours…';
@@ -257,9 +318,10 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   });
 
   function succes(p){
-    var la = p.coords.latitude, lo = p.coords.longitude;
+    var la = p.coords.latitude, lo = p.coords.longitude; laLo = {lat:la, lon:lo};
     $('etat').textContent = '';
     $('introFr').style.display = 'none'; $('introEn').style.display = 'none';
+    $('slot').style.display = 'none';
 
     var km = distKm(CONFIG.lat, CONFIG.lon, la, lo);
     $('km').textContent = km < 10 ? km.toFixed(1).replace('.',',') : Math.round(km);
@@ -271,24 +333,70 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     }
     $('maPos').textContent = (anglais()?'You: ':'Vous : ')+dms(la,'N','S')+'   '+dms(lo,'E','O');
 
-    // le bouton devient l'envoi, au même endroit
-    $('slot').innerHTML = '<a class="bouton" href="'+lienMail({lat:la,lon:lo})+'">'
-      + '<span class="fr">Envoyer ce point</span><span class="en">Send this position</span></a>';
-
-    if(window.L){
-      var el = $('carte'); el.style.display='block';
-      var map = L.map(el);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenStreetMap'}).addTo(map);
-      var A=[CONFIG.lat,CONFIG.lon], B=[la,lo];
-      L.circleMarker(A,{radius:7,color:'#12314A',fillColor:'#12314A',fillOpacity:1}).addTo(map)
-        .bindPopup(anglais()?'Launched here':'Larguée ici');
+    if(map){
+      var B=[la,lo];
       L.circleMarker(B,{radius:9,color:'#C93C22',fillColor:'#C93C22',fillOpacity:1}).addTo(map)
-        .bindPopup(anglais()?'Found here':'Trouvée ici');
-      L.polyline([A,B],{color:'#C93C22',weight:2,dashArray:'5,6'}).addTo(map);
-      map.fitBounds(L.latLngBounds([A,B]).pad(0.3));
+        .bindPopup(anglais()?'You are here':'Vous êtes ici').openPopup();
+      L.polyline([[CONFIG.lat,CONFIG.lon],B],{color:'#C93C22',weight:2,dashArray:'5,6'}).addTo(map);
+      map.fitBounds(L.latLngBounds([[CONFIG.lat,CONFIG.lon],B]).pad(0.3));
     }
+    $('form').style.display = 'block';
     fenetre(la,lo);
   }
+
+  // ---- Photo : aperçu + compression (canvas ~1280px) ----
+  $('photo').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    if(!f) return;
+    $('apercu').src = URL.createObjectURL(f);
+    $('apercu').style.display = 'block';
+  });
+  function compresser(file){
+    return new Promise(function(resolve){
+      if(!file){ resolve(''); return; }
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        var max=1280, w=img.width, h=img.height;
+        if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+        else if(h>=w && h>max){ w=Math.round(w*max/h); h=max; }
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        try{ resolve(cv.toDataURL('image/jpeg',0.65)); }catch(e){ resolve(''); }
+      };
+      img.onerror = function(){ resolve(''); };
+      img.src = url;
+    });
+  }
+
+  // ---- Envoi du signalement (repli : courriel) ----
+  $('form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    if(!laLo) return;
+    var lang = anglais(), btn = $('btnEnvoi');
+    btn.disabled = true; btn.textContent = lang?'Sending…':'Envoi…';
+    var f = $('photo').files && $('photo').files[0];
+    compresser(f).then(function(photo){
+      return fetch(CONFIG.api+'/api/escale',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          unite:u, lat:laLo.lat, lon:laLo.lon,
+          trouve_le:new Date().toLocaleString(lang?'en-CA':'fr-CA'),
+          message:$('message').value, nom:$('nom').value,
+          photo:photo, site:$('site').value
+        })
+      });
+    }).then(function(r){
+      if(!r.ok) throw 0;
+      $('form').style.display='none';
+      $('merci').style.display='block';
+    }).catch(function(){
+      btn.disabled=false;
+      btn.innerHTML='<span class="fr">Envoyer ma découverte</span><span class="en">Send my find</span>';
+      $('etat').innerHTML = (lang ? "Couldn't send. " : 'Envoi impossible. ')
+        + '<a href="'+lienMail(laLo)+'">'+(lang?'Send by email instead':'Envoyer par courriel plutôt')+'</a>';
+    });
+  });
 
   function fenetre(la,lo){
     var mar = 'https://marine-api.open-meteo.com/v1/marine?latitude='+la+'&longitude='+lo
