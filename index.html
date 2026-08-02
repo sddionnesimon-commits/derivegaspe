@@ -372,12 +372,12 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     var now=new Date();
     var jours=Math.floor((now-d0)/86400000);
     if(jours<1) return;                                // trop tot (< 1 jour)
-    var vMin=25, vMax=40;                              // km/jour, courant de Gaspé (brief)
+    var vMin=20, vMax=80;                              // km/jour (recherche : bordure -> coeur du courant ~1 m/s)
     var rMin=jours*vMin*1000, rMax=jours*vMax*1000;    // metres
     var lang=anglais();
     $('estimTexte').innerHTML = lang
-      ? 'After <b>'+jours+' day'+(jours>1?'s':'')+'</b>, carried by the Gaspé Current (25–40 km/day), it has probably travelled <b>'+(jours*vMin)+' to '+(jours*vMax)+' km</b>, somewhere within the ring. The current usually flows east-southeast (toward Percé and the Magdalen Islands), so more likely on that side.'
-      : 'Après <b>'+jours+' jour'+(jours>1?'s':'')+'</b>, portée par le courant de Gaspé (25–40 km/jour), elle a probablement parcouru <b>'+(jours*vMin)+' à '+(jours*vMax)+' km</b>, quelque part dans l’anneau. Le courant file généralement vers l’est-sud-est (Percé, les Îles-de-la-Madeleine), donc plus probablement de ce côté.';
+      ? 'After <b>'+jours+' day'+(jours>1?'s':'')+'</b>, carried by the Gaspé Current (20 to 80 km/day), it has probably travelled <b>'+(jours*vMin)+' to '+(jours*vMax)+' km</b>, somewhere within the ring. The current usually flows east-southeast (toward Percé and the Magdalen Islands), so more likely on that side.'
+      : 'Après <b>'+jours+' jour'+(jours>1?'s':'')+'</b>, portée par le courant de Gaspé (20 à 80 km/jour), elle a probablement parcouru <b>'+(jours*vMin)+' à '+(jours*vMax)+' km</b>, quelque part dans l’anneau. Le courant file généralement vers l’est-sud-est (Percé, les Îles-de-la-Madeleine), donc plus probablement de ce côté.';
     $('estim').style.display='block';
     if(map){
       var A=[CONFIG.lat,CONFIG.lon];
