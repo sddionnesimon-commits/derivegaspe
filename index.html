@@ -185,6 +185,12 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     <textarea id="message" maxlength="2000"></textarea>
     <label class="champ" for="nom"><span class="fr">Votre nom (facultatif)</span><span class="en">Your name (optional)</span></label>
     <input type="text" id="nom" maxlength="80">
+    <label class="champ" for="courriel"><span class="fr">Votre courriel (facultatif)</span><span class="en">Your email (optional)</span></label>
+    <input type="email" id="courriel" maxlength="120" autocomplete="email" inputmode="email">
+    <p class="note" style="margin:6px 0 0">
+      <span class="fr">Sert à deux choses, et à rien d'autre&nbsp;: vous répondre, et vous avertir si quelqu'un d'autre retrouve la bouteille plus tard. Jamais affiché sur le site, jamais donné à personne, jamais d'infolettre. Écrivez-moi et je l'efface.</span>
+      <span class="en">Used for two things only: to write back, and to let you know if someone else finds the bottle later. Never shown on the site, never shared, never a newsletter. Write to me and I'll delete it.</span>
+    </p>
     <input type="text" class="hp" id="site" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button type="submit" class="bouton" id="btnEnvoi" style="margin-top:14px">
       <span class="fr">Envoyer ma découverte</span><span class="en">Send my find</span>
@@ -231,6 +237,10 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
 
   <h3><span class="fr">En images</span><span class="en">In pictures</span></h3>
   <div class="galerie">
+    <figure class="grand">
+      <img src="/assets/photos/famille.jpg" alt="Quatre personnes et un chien sur la grève, la bouteille au premier plan" loading="lazy" width="1400" height="788">
+      <figcaption><span class="fr">Le jour du largage, en famille, à Cap-des-Rosiers</span><span class="en">Launch day with the family, at Cap-des-Rosiers</span></figcaption>
+    </figure>
     <figure class="grand">
       <img src="/assets/photos/cote.jpg" alt="La bouteille sur un rocher au bord de l'eau, le cap à l'horizon" loading="lazy" width="1400" height="788">
       <figcaption><span class="fr">Sur la côte de Cap-des-Rosiers</span><span class="en">On the Cap-des-Rosiers shore</span></figcaption>
@@ -436,7 +446,7 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
           unite:u, lat:laLo.lat, lon:laLo.lon,
           trouve_le:new Date().toLocaleString(lang?'en-CA':'fr-CA'),
           message:$('message').value, nom:$('nom').value,
-          photo:photo, site:$('site').value
+          photo:photo, courriel:$('courriel').value.trim(), site:$('site').value
         })
       });
     }).then(function(r){
