@@ -90,11 +90,6 @@ p{margin:0 0 14px}
 .escale .msg{margin:0 0 8px;font-style:italic}
 .escale .ou{font-size:13.5px;color:var(--pale);margin:0}
 .escale .ou a{color:var(--pale)}
-#estim{border:1px dashed var(--signal);background:var(--papier2);padding:14px 16px;margin:10px 0 16px;display:none}
-#estim .titre{font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;
-  letter-spacing:.1em;font-size:13px;color:var(--signal);margin-bottom:6px}
-#estim p{margin:0;font-size:15px}
-#estim .avert{font-size:13px;color:var(--pale);margin-top:8px;font-style:italic}
 
 .fenetre{border:1px solid var(--encre);background:var(--papier2);padding:16px 18px;margin:16px 0 20px;display:none}
 .fenetre .titre{font-family:'Barlow Condensed',sans-serif;font-weight:600;text-transform:uppercase;
@@ -176,12 +171,6 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
   <h3><span class="fr">Le voyage</span><span class="en">The journey</span></h3>
   <div id="carte"></div>
   <p class="note coord" id="maPos"></p>
-
-  <div id="estim">
-    <div class="titre"><span class="fr">Où est-elle maintenant ?</span><span class="en">Where is it now?</span></div>
-    <p id="estimTexte"></p>
-    <p class="avert"><span class="fr">Estimation basée sur la vitesse habituelle du courant de Gaspé. Très approximative — la mer est imprévisible, c'est une hypothèse et non une position réelle.</span><span class="en">Based on the usual speed of the Gaspé Current. Very approximate — the sea is unpredictable; this is a guess, not a real position.</span></p>
-  </div>
 
   <h3 id="titreEscales" style="display:none"><span class="fr">Les escales</span><span class="en">The stops</span></h3>
   <div id="escales"></div>
@@ -367,31 +356,9 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     var x=Math.cos(la1*r)*Math.sin(la2*r)-Math.sin(la1*r)*Math.cos(la2*r)*Math.cos(dl);
     return (Math.atan2(y,x)/r+360)%360;
   }
-  // ---- Projection de derive : estimation TRES approximative de la position actuelle ----
-  function projection(){
-    var now=new Date();
-    var jours=Math.floor((now-d0)/86400000);
-    if(jours<1) return;                                // trop tot (< 1 jour)
-    var vMin=20, vMax=80;                              // km/jour (recherche : bordure -> coeur du courant ~1 m/s)
-    var rMin=jours*vMin*1000, rMax=jours*vMax*1000;    // metres
-    var lang=anglais();
-    $('estimTexte').innerHTML = lang
-      ? 'After <b>'+jours+' day'+(jours>1?'s':'')+'</b>, carried by the Gaspé Current (20 to 80 km/day), it has probably travelled <b>'+(jours*vMin)+' to '+(jours*vMax)+' km</b>, somewhere within the ring. The current usually flows east-southeast (toward Percé and the Magdalen Islands), so more likely on that side.'
-      : 'Après <b>'+jours+' jour'+(jours>1?'s':'')+'</b>, portée par le courant de Gaspé (20 à 80 km/jour), elle a probablement parcouru <b>'+(jours*vMin)+' à '+(jours*vMax)+' km</b>, quelque part dans l’anneau. Le courant file généralement vers l’est-sud-est (Percé, les Îles-de-la-Madeleine), donc plus probablement de ce côté.';
-    $('estim').style.display='block';
-    if(map){
-      var A=[CONFIG.lat,CONFIG.lon];
-      var cMax=L.circle(A,{radius:rMax,color:'#C93C22',weight:1.5,opacity:.55,dashArray:'5,7',fillColor:'#C93C22',fillOpacity:.05}).addTo(map);
-      L.circle(A,{radius:rMin,color:'#C93C22',weight:1.5,opacity:.55,dashArray:'5,7',fill:false}).addTo(map)
-        .bindPopup(lang?'Probable distance travelled':'Distance probablement parcourue');
-      if(!laLo) map.fitBounds(cMax.getBounds().pad(0.15));
-    }
-  }
   fetch(CONFIG.api+'/api/escales/'+u).then(function(r){return r.json()})
     .then(function(d){ var es=d.escales||[]; pointsCarte(es); afficherEscales(es); })
     .catch(function(){ pointsCarte([]); });
-  // projection() volontairement NON appelée : la fourchette réelle du courant de Gaspé
-  // (20 à 86 km/j) donne un anneau trop large pour être utile. Code conservé pour référence.
 
   $('btnPos').addEventListener('click', function(){
     if(!navigator.geolocation){ $('etat').textContent = anglais()?'Location unavailable here.':'Localisation non offerte sur cet appareil.'; return }
