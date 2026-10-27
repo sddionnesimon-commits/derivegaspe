@@ -1,0 +1,3 @@
+# GitHub Pages (Jekyll) ignore les dossiers qui commencent par un point :
+# cette ligne publie .well-known/security.txt (contact sécurité, renouveler Expires chaque année).
+include: [".well-known"]

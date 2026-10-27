@@ -6,10 +6,15 @@
 <title>Projet Dérive Gaspésie</title>
 <meta name="description" content="Vous avez trouvé une capsule de dérive du golfe du Saint-Laurent. Remettez-la à l'eau au bon moment.">
 <meta name="google-site-verification" content="zYF6_FUKzVo3rf-mxyVX3WKH9sJ-E5OM24txY3Qy9Xo" />
+<!-- Sécurité (GitHub Pages ne permet pas d'en-têtes : ces deux balises en tiennent lieu).
+     La CSP liste chaque service que la page appelle ; en ajouter un = l'ajouter ici aussi.
+     'unsafe-inline' reste permis pour que le bloc CONFIG se corrige depuis un téléphone. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://derivegaspe-api.sd-dionne-simon.workers.dev; connect-src https://derivegaspe-api.sd-dionne-simon.workers.dev https://marine-api.open-meteo.com https://api.open-meteo.com https://api.bigdatacloud.net; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
 <script>
 /* ═══════════════════════════════════════════════════════════
@@ -275,7 +280,7 @@ body.lang-en .stat .en,body.lang-en .langues .en{display:inline}
     Marées, courants et vents : Open-Meteo (CC BY 4.0) · Carte : OpenStreetMap</p>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 (function(){
   var $ = function(i){ return document.getElementById(i) };
